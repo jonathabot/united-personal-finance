@@ -35,21 +35,45 @@ O projeto está em desenvolvimento e já possui um primeiro fluxo executável.
 - Separação entre despesas pessoais e de terceiros, mantendo ambas no total da fatura.
 - Estornos tratados como redução da despesa e da fatura, sem virar receita.
 - Classificação financeira reproduzível em `confortável`, `atenção` ou `crítica`.
-- Cinco tools validadas para resumo financeiro, rascunho, confirmação, análise de gastos e simulação.
+- Tools validadas para resumo, comparação mensal, rascunhos, confirmações, análise de gastos e simulações.
 - Dados demonstrativos centralizados com receitas, cartões, categorias e histórico mensal.
 - Modo Groq e modo demonstração conectados ao mesmo executor de tools e ao mesmo motor financeiro.
+- Catálogo visual com saúde financeira, projeções, categorias, oportunidades, cenários, esclarecimentos e erros.
+- Gráficos responsivos renderizados localmente com Recharts e acompanhados de alternativa textual acessível.
+- Estado de análise integrado ao ciclo de execução do assistant-ui.
+- Clientes Supabase SSR para navegador e servidor com sessão em cookies.
+- Login, cadastro, confirmação por e-mail, logout e proteção da rota do agente.
+- Migration inicial do domínio temporal com auditoria e políticas RLS por usuário.
+- Repositório financeiro Supabase conectado às tools de consulta da sessão autenticada.
+- Onboarding controlado para contas novas, sem reutilizar números demonstrativos.
+- Rascunhos persistentes e confirmação transacional para criar ou renomear entidades financeiras.
+- Nomes anteriores preservados como aliases após renomeações.
+- Alterações de valores recorrentes por vigência, sem sobrescrever meses anteriores.
+- Quitação e encerramento temporal de entidades, preservando o histórico.
+- Cancelamento de rascunhos e confirmação idempotente contra processamento duplicado.
+- Histórico da conversa persistido no Supabase e restaurado entre sessões e dispositivos.
+- Auditoria automática de entidades, valores recorrentes, transações, parcelas e quitações.
+- Despesas pessoais ou de terceiros, receitas avulsas, estornos vinculáveis e transferências entre contas passam pelo mesmo fluxo confirmável.
+- Correção auditável de valor, categoria, descrição, data, meio de pagamento e pertencimento a terceiro.
+- Antecipação confirmável de parcelas futuras, preservando o cronograma anterior na auditoria.
+- Histórico visual de lançamentos recentes, incluindo itens desfeitos.
+- Um único rascunho pendente por conversa, expiração preguiçosa e locks contra confirmação concorrente.
+- Projeções, comparações mensais, oportunidades de economia e cenários roteados deterministicamente sobre dados reais.
+- Premissas de cálculo visíveis nos cards analíticos, incluindo receitas, fixos, faturas, despesas fora do cartão, períodos-base e limites de saúde.
+- Receitas avulsas e despesas pessoais em conta incorporadas às projeções sem depender de aritmética do modelo.
 - Testes unitários para dinheiro, calendário de cartões, resumos, projeções e simulações.
 
 ### Demonstrativo ou incompleto
 
-- As faturas exibidas ainda são dados fixos de demonstração.
+- Os dados demonstrativos permanecem apenas como fallback quando o Supabase não está configurado.
 - O modo demo reconhece somente algumas frases por regras locais.
 - A Groq é utilizada apenas quando `GROQ_API_KEY` está configurada.
-- O histórico é mantido no navegador, mas ainda não é persistido entre sessões ou dispositivos.
-- As tools operam sobre uma fotografia demonstrativa de agosto de 2026; ainda não consultam dados pessoais reais.
-- Os botões **Editar** e **Confirmar** ainda não persistem alterações.
-- Banco de dados, autenticação e auditoria ainda não foram conectados.
-- O motor de projeções, análises e simulações já existe, mas ainda não está conectado às tools nem a dados persistidos.
+- O histórico textual da conversa é persistido; cards A2UI antigos são reconstruídos a partir de novas consultas, não serializados no histórico.
+- As tools de leitura já consultam cartões, recorrências, exceções mensais, transações e parcelas do usuário autenticado.
+- Criação, renomeação, ajustes de valor, quitação de entidades, lançamentos à vista ou parcelados, correções, antecipações e desfazimentos possuem confirmação persistente.
+- Os botões **Editar**, **Cancelar** e **Confirmar** do card de despesa estão conectados ao fluxo auditável do chat.
+- A migration `202608200008_complete_step6.sql` foi aplicada e validada no projeto remoto.
+- O motor e as tools de consulta recebem os dados persistidos do usuário autenticado.
 - A integração atual usa os conceitos e eventos centrais de AG-UI/A2UI, mas ainda não representa uma implementação integral de todas as especificações oficiais.
 
 ## Arquitetura atual
@@ -77,9 +101,9 @@ flowchart LR
 | Tools | Expor operações financeiras autorizadas e validadas. |
 | Motor financeiro | Calcular centavos, parcelas, faturas, saldos e projeções. |
 | AG-UI | Transportar ciclo de execução, texto e eventos visuais. |
-| A2UI | Descrever tabelas, cards e futuras visualizações como dados. |
+| A2UI | Descrever tabelas, cards e gráficos como dados validados. |
 | Renderer React | Validar o payload e renderizar somente componentes permitidos. |
-| Banco de dados | Futuramente armazenar dados financeiros e histórico auditável. |
+| Banco de dados | Armazenar dados financeiros temporais, conversas e histórico auditável com RLS. |
 
 ## Princípios do projeto
 
@@ -106,14 +130,13 @@ flowchart LR
 | Groq SDK | Acesso ao modelo hospedado na Groq. |
 | GPT-OSS 20B | Interpretação de linguagem e seleção de tools. |
 | Lucide React | Ícones da interface baseada no Pencil. |
+| Recharts | Gráficos financeiros responsivos renderizados no navegador. |
+| Supabase JS + SSR | Autenticação por cookies e acesso ao Postgres respeitando RLS. |
 | Vitest | Testes unitários do domínio. |
 | ESLint | Análise estática do código. |
 
 ### Planejado
 
-- Supabase Postgres para persistência.
-- Supabase Auth para autenticação.
-- Row Level Security para isolamento dos dados.
 - Vercel para deploy da aplicação.
 - PWA para instalação no celular.
 
@@ -123,10 +146,20 @@ flowchart LR
 src/
 ├─ app/
 │  ├─ api/agent/route.ts       # Stream de eventos do agente
+│  ├─ auth/callback/route.ts   # Troca do código de autenticação por sessão
+│  ├─ login/                   # Tela e ações de autenticação
 │  ├─ globals.css              # Layout responsivo baseado no Pencil
 │  └─ page.tsx                 # Shell da aplicação
 ├─ components/
-│  ├─ a2ui/renderer.tsx        # Registry e renderer declarativo
+│  ├─ a2ui/
+│  │  ├─ catalog.ts            # Catálogo fechado de componentes permitidos
+│  │  ├─ renderer.tsx          # Renderer declarativo
+│  │  ├─ financial-health-card.tsx
+│  │  ├─ projection-chart.tsx
+│  │  ├─ category-breakdown.tsx
+│  │  ├─ savings-opportunity-table.tsx
+│  │  ├─ scenario-comparison.tsx
+│  │  └─ feedback-card.tsx     # Esclarecimento e erro
 │  └─ chat/finance-chat.tsx    # Thread, composer e runtime assistant-ui
 └─ lib/
    ├─ a2ui/
@@ -148,6 +181,14 @@ src/
    │  ├─ schemas.ts           # Validação Zod dos argumentos
    │  ├─ executor.ts          # Ponte segura para o motor financeiro
    │  └─ executor.test.ts     # Testes de integração das tools
+   ├─ supabase/
+   │  ├─ client.ts            # Cliente do navegador
+   │  ├─ server.ts            # Cliente SSR baseado em cookies
+   │  └─ config.ts            # Configuração pública validada
+   ├─ repositories/
+   │  ├─ financial-repository.ts          # Contrato independente da fonte
+   │  ├─ demo-financial-repository.ts     # Fallback sem Supabase
+   │  └─ supabase-financial-repository.ts # Consultas reais protegidas por RLS
    ├─ money.ts                 # Operações monetárias determinísticas
    └─ money.test.ts            # Testes do domínio monetário
 ```
@@ -197,7 +238,7 @@ No que posso economizar?
 E se eu reduzir delivery pela metade?
 ```
 
-Essas perguntas acionam as tools de projeção, análise e simulação sobre a fotografia demonstrativa de agosto de 2026.
+Essas perguntas acionam as tools determinísticas de projeção, comparação, análise e simulação. Em sessão autenticada, os dados vêm do Supabase; sem configuração, utiliza-se a fotografia demonstrativa de agosto de 2026.
 
 ## Verificações
 
@@ -209,7 +250,7 @@ npm run build
 
 Estado da última validação:
 
-- 28 testes aprovados.
+- 61 testes aprovados.
 - Lint aprovado.
 - TypeScript aprovado durante o build.
 - Build de produção aprovado.
@@ -221,10 +262,10 @@ Estado da última validação:
 | 1 | Runtime conversacional | Enviar o histórico completo; manter `threadId`; preservar contexto entre mensagens; permitir resposta direta, tool ou pedido de esclarecimento; impedir tools em mensagens irrelevantes; identificar visualmente Groq e modo demo. | Perguntas de continuidade e correções contextuais funcionarem sem o agente inventar operações. | ✅ Concluído — base |
 | 2 | Motor financeiro | Visão consolidada; faturas por fechamento e vencimento; parcelas futuras; agrupamento por categoria; comparação mensal; projeção de saldo; oportunidades de economia; simulações sem persistência. | Todos os totais forem reproduzíveis, calculados em centavos e cobertos por testes. | ✅ Concluído — base |
 | 3 | Tools do agente | Implementar `queryFinancialOverview`, `createTransactionDraft`, `confirmTransaction`, `analyzeSpending` e `simulateFinancialScenario`. | O agente conseguir consultar, analisar, simular e propor lançamentos sem calcular valores por conta própria. | ✅ Concluído — base |
-| 4 | Catálogo A2UI | Criar `FinancialHealthCard`, `ProjectionChart`, `CategoryBreakdown`, `SavingsOpportunityTable`, `ScenarioComparison` e componentes de esclarecimento, loading e erro. | Consultas financeiras escolherem automaticamente uma apresentação adequada e validada. | ➡️ Próximo |
-| 5 | Supabase | Criar migrations; configurar autenticação; aplicar Row Level Security; persistir contas, cartões, categorias, transações, auditoria e contexto das conversas. | Cada usuário acessar somente seus dados e todas as alterações financeiras serem auditáveis. | ⏳ Pendente |
-| 6 | Fluxo completo de lançamento | Mensagem → interpretação → rascunho validado → confirmação → persistência → recálculo → resposta A2UI. Incluir edição, cancelamento e proteção contra confirmação duplicada. | Uma despesa confirmada aparecer corretamente na fatura e no histórico. | ⏳ Pendente |
-| 7 | Conversas analíticas | Responder projeções, comparações, possíveis economias e cenários como “vou ficar apertado no próximo mês?” e “e se eu reduzir restaurantes pela metade?”. | As respostas utilizarem dados reais, exibirem premissas e nunca dependerem de aritmética do modelo. | ⏳ Pendente |
+| 4 | Catálogo A2UI | Criar `FinancialHealthCard`, `ProjectionChart`, `CategoryBreakdown`, `SavingsOpportunityTable`, `ScenarioComparison` e componentes de esclarecimento, loading e erro. | Consultas financeiras escolherem automaticamente uma apresentação adequada e validada. | ✅ Concluído — base |
+| 5 | Supabase | Migrations, autenticação, RLS, entidades temporais, valores recorrentes, auditoria, rascunhos confirmáveis e contexto das conversas. | Cada usuário acessar somente seus dados; mudanças estruturais serem temporais, confirmáveis e auditáveis; conversa sobreviver entre dispositivos. | ✅ Concluído |
+| 6 | Fluxo completo de lançamento | Mensagem → interpretação → rascunho validado → confirmação → persistência → recálculo → resposta A2UI. Incluir edição, cancelamento e proteção contra confirmação duplicada. | Uma despesa confirmada aparecer corretamente na fatura e no histórico. | ✅ Concluído e validado |
+| 7 | Conversas analíticas | Responder projeções, comparações, possíveis economias e cenários como “vou ficar apertado no próximo mês?” e “e se eu reduzir restaurantes pela metade?”. | As respostas utilizarem dados reais, exibirem premissas e nunca dependerem de aritmética do modelo. | ✅ Concluído no código — executar roteiro de aceite |
 | 8 | Deploy e PWA | Publicar na Vercel; conectar Groq e Supabase por variáveis de ambiente; instalar como PWA; validar desktop e celular; adicionar observabilidade, limites e tratamento de indisponibilidade. | O aplicativo funcionar com segurança fora do ambiente local e puder ser instalado no celular. | ⏳ Pendente |
 
 ## Documentação funcional
