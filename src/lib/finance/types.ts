@@ -27,12 +27,19 @@ export type Installment = {
   statementMonth: MonthKey;
 };
 
+export type PersistedInstallment = Installment & {
+  transactionId: string;
+  entityId: string;
+  status: "scheduled" | "paid" | "anticipated" | "voided";
+};
+
 export type MonthlyProjectionInput = {
   month: MonthKey;
   incomeCents: number;
   fixedExpensesCents: number;
   invoiceCents: number;
   futureInstallmentsCents: number;
+  variableExpensesCents?: number;
 };
 
 export function assertCents(value: number, field = "value") {
@@ -40,4 +47,3 @@ export function assertCents(value: number, field = "value") {
     throw new RangeError(`${field} must be a non-negative safe integer number of cents.`);
   }
 }
-

@@ -33,6 +33,7 @@ const componentSchema = z.discriminatedUnion("component", [
   z.object({ id: z.string(), component: z.literal("ScenarioComparison"), dataPath: z.string() }),
   z.object({ id: z.string(), component: z.literal("ClarificationCard"), dataPath: z.string() }),
   z.object({ id: z.string(), component: z.literal("ErrorCard"), dataPath: z.string() }),
+  z.object({ id: z.string(), component: z.literal("FinancialChangeConfirmation"), dataPath: z.string() }),
 ]);
 
 export const a2uiMessageSchema = z.discriminatedUnion("kind", [

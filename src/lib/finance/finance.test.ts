@@ -74,6 +74,16 @@ describe("installment schedule", () => {
       futureCents: 6667,
     });
   });
+
+  it("adds only the installment due in each statement and never the full parent transaction", () => {
+    const purchase = transaction({ id: "parcelled", type: "expense", amountCents: 10000, occurredAt: "2026-08-19", creditCardId: "nubank" });
+    const installments = createInstallmentSchedule(10000, 3, "2026-09").map((item) => ({
+      ...item, transactionId: purchase.id, entityId: "nubank", status: "scheduled" as const,
+    }));
+    expect(calculateCardStatement([purchase], nubank, "2026-09", installments).totalCents).toBe(3333);
+    expect(calculateCardStatement([purchase], nubank, "2026-10", installments).totalCents).toBe(3333);
+    expect(calculateCardStatement([purchase], nubank, "2026-11", installments).totalCents).toBe(3334);
+  });
 });
 
 describe("monthly summary", () => {
@@ -99,6 +109,14 @@ describe("monthly summary", () => {
 });
 
 describe("projections and scenarios", () => {
+  it("includes direct variable expenses in the deterministic projection", () => {
+    const projection = calculateMonthlyProjection({
+      month: "2026-08", incomeCents: 500000, fixedExpensesCents: 100000,
+      invoiceCents: 50000, futureInstallmentsCents: 0, variableExpensesCents: 25000,
+    });
+    expect(projection.committedCents).toBe(175000);
+    expect(projection.projectedBalanceCents).toBe(325000);
+  });
   it.each([
     [{ month: "2026-09" as const, incomeCents: 500000, fixedExpensesCents: 100000, invoiceCents: 100000, futureInstallmentsCents: 50000 }, "comfortable"],
     [{ month: "2026-09" as const, incomeCents: 500000, fixedExpensesCents: 200000, invoiceCents: 150000, futureInstallmentsCents: 50000 }, "attention"],

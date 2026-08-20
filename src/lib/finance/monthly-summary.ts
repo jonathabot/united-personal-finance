@@ -1,11 +1,12 @@
 import { dateMonth } from "./calendar";
 import { calculateCardStatement } from "./statements";
-import type { CreditCardConfig, FinanceTransaction, MonthKey } from "./types";
+import type { CreditCardConfig, FinanceTransaction, MonthKey, PersistedInstallment } from "./types";
 
 export function calculateMonthlySummary(
   transactions: readonly FinanceTransaction[],
   month: MonthKey,
   cards: readonly CreditCardConfig[] = [],
+  installments: readonly PersistedInstallment[] = [],
 ) {
   const confirmed = transactions.filter((transaction) =>
     transaction.status === "confirmed" && dateMonth(transaction.occurredAt) === month);
@@ -22,7 +23,7 @@ export function calculateMonthlySummary(
   const thirdPartyExpensesCents = confirmed
     .filter((transaction) => transaction.type === "expense" && transaction.belongsToThirdParty)
     .reduce((total, transaction) => total + transaction.amountCents, 0);
-  const statements = cards.map((card) => calculateCardStatement(transactions, card, month));
+  const statements = cards.map((card) => calculateCardStatement(transactions, card, month, installments));
 
   return {
     month,
@@ -36,4 +37,3 @@ export function calculateMonthlySummary(
     statements,
   };
 }
-

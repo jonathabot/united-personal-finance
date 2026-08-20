@@ -19,9 +19,10 @@ export function calculateMonthlyProjection(
   assertCents(input.fixedExpensesCents, "fixedExpensesCents");
   assertCents(input.invoiceCents, "invoiceCents");
   assertCents(input.futureInstallmentsCents, "futureInstallmentsCents");
+  assertCents(input.variableExpensesCents ?? 0, "variableExpensesCents");
   assertCents(thresholds.attentionBalanceCents, "attentionBalanceCents");
 
-  const committedCents = input.fixedExpensesCents + input.invoiceCents + input.futureInstallmentsCents;
+  const committedCents = input.fixedExpensesCents + input.invoiceCents + input.futureInstallmentsCents + (input.variableExpensesCents ?? 0);
   if (!Number.isSafeInteger(committedCents)) throw new RangeError("Projection exceeds the safe integer range.");
   const projectedBalanceCents = input.incomeCents - committedCents;
   const committedIncomePercentage = input.incomeCents === 0
@@ -42,4 +43,3 @@ export function projectMonths(
 ) {
   return inputs.map((input) => calculateMonthlyProjection(input, thresholds));
 }
-

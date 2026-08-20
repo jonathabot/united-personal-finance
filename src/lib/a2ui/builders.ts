@@ -1,4 +1,5 @@
 import type { A2UIComponent, A2UIPayload, TableColumn } from "./schema";
+import { formatCurrency } from "../money";
 
 const catalogId = "https://united.finance/a2ui/catalog/v1.json" as const;
 
@@ -17,6 +18,10 @@ export type FinancialHealthData = {
   projectedBalanceCents: number;
   committedIncomePercentage: number;
   status: "comfortable" | "attention" | "critical";
+  fixedExpensesCents?: number;
+  invoiceCents?: number;
+  futureInstallmentsCents?: number;
+  variableExpensesCents?: number;
 };
 
 export type ProjectionPoint = {
@@ -35,20 +40,37 @@ export function buildFinancialOverview(
   const columns: TableColumn[] = [
     { key: "name", label: "Cartão", format: "text" },
     { key: "invoiceCents", label: "Fatura", format: "currency" },
+    { key: "futureCents", label: "Parcelas futuras", format: "currency" },
     { key: "dueDate", label: "Vencimento", format: "date" },
+  ];
+  const assumptionColumns: TableColumn[] = [
+    { key: "premise", label: "Premissa", format: "text" },
+    { key: "value", label: "Valor", format: "text" },
+  ];
+  const assumptions = [
+    { premise: "Receitas consideradas", value: formatCurrency(health.incomeCents) },
+    { premise: "Despesas fixas e empréstimos", value: formatCurrency(health.fixedExpensesCents ?? 0) },
+    { premise: "Faturas do mês", value: formatCurrency(health.invoiceCents ?? 0) },
+    { premise: "Despesas variáveis fora dos cartões", value: formatCurrency(health.variableExpensesCents ?? 0) },
+    { premise: "Parcelas futuras adicionais", value: formatCurrency(health.futureInstallmentsCents ?? 0) },
+    { premise: "Limites de atenção", value: "Saldo < R$ 500 ou comprometimento ≥ 80%" },
   ];
   return surface(`overview-${month}`, [
     { id: "health", component: "FinancialHealthCard", dataPath: "/health" },
     { id: "projection", component: "ProjectionChart", dataPath: "/projection" },
     { id: "invoices", component: "FinanceDataTable", title: `Faturas de ${month}`, columnsPath: "/columns", rowsPath: "/invoices" },
-  ], { health, projection, columns, invoices });
+    { id: "assumptions", component: "FinanceDataTable", title: "Premissas do cálculo", columnsPath: "/assumptionColumns", rowsPath: "/assumptions" },
+  ], { health, projection, columns, invoices, assumptionColumns, assumptions });
 }
 
-export function buildSpendingAnalysis(month: string, categories: Record<string, unknown>[]): A2UIPayload {
+export function buildSpendingAnalysis(month: string, categories: Record<string, unknown>[], baselineMonths: string[] = []): A2UIPayload {
+  const premiseColumns: TableColumn[] = [{ key: "premise", label: "Premissa", format: "text" }, { key: "value", label: "Período", format: "text" }];
+  const premises = [{ premise: "Mês analisado", value: month }, { premise: "Média histórica", value: baselineMonths.join(" e ") }, { premise: "Exclusões", value: "Terceiros, transferências e lançamentos desfeitos" }];
   return surface(`analysis-${month}`, [
     { id: "categories", component: "CategoryBreakdown", dataPath: "/categories" },
     { id: "opportunities", component: "SavingsOpportunityTable", dataPath: "/categories" },
-  ], { categories });
+    { id: "analysis-premises", component: "FinanceDataTable", title: "Premissas da comparação", columnsPath: "/premiseColumns", rowsPath: "/premises" },
+  ], { categories, premiseColumns, premises });
 }
 
 export function buildScenarioComparison(data: Record<string, unknown>): A2UIPayload {
@@ -63,14 +85,21 @@ export function buildErrorCard(message: string): A2UIPayload {
   return surface("controlled-error", { id: "error", component: "ErrorCard", dataPath: "/error" }, { error: { message } });
 }
 
+export function buildFinancialChangeConfirmation(data: { title: string; fields: { label: string; value: string }[] }): A2UIPayload {
+  return surface(`financial-change-${crypto.randomUUID()}`, { id: "change", component: "FinancialChangeConfirmation", dataPath: "/change" }, { change: data });
+}
+
 export type TransactionDraft = {
   id: string;
-  type: "expense";
+  type: "expense" | "income" | "refund" | "transfer";
   amountCents: number;
   description: string;
   category: string;
   paymentMethod: string;
   occurredAt: string;
+  installmentCount: number;
+  belongsToThirdParty: boolean;
+  destinationPaymentMethod?: string;
   status: "pending";
 };
 
