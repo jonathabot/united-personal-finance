@@ -47,8 +47,8 @@ reproduzíveis.
 
 - Chat em português.
 - Prévia estruturada antes da confirmação quando houver ambiguidade.
-- Dashboard mensal responsivo.
-- Tela de histórico para corrigir lançamentos.
+- Dashboard mensal responsivo apresentado por cards dentro da conversa.
+- Histórico recente apresentado no chat para corrigir ou desfazer lançamentos.
 
 ## Fora do MVP
 
@@ -87,9 +87,10 @@ reproduzíveis.
 O backend nunca deve persistir diretamente a resposta do modelo. Ela passa por
 validação de esquema, resolução de entidades e regras de negócio.
 
-## Decisões pendentes
+## Decisões da POC 1.0
 
-- Se todo gasto exige confirmação ou apenas interpretações ambíguas.
-- Como importar o estado financeiro existente no chat.
-- Se o primeiro deploy usará Supabase ou PostgreSQL gerenciado diretamente.
-- Quais colunas exatas compõem a tabela mensal usada atualmente.
+- Toda alteração persistente exige prévia e confirmação; consultas e simulações não.
+- O estado financeiro inicial é cadastrado pelo onboarding conversacional.
+- A persistência localmente validada utiliza Supabase com autenticação e RLS.
+- A tabela mensal inclui cartão, total da fatura, parcelas futuras, vencimento e total consolidado.
+- Dashboard e histórico fazem parte da conversa por meio do catálogo A2UI, sem telas independentes nesta POC.

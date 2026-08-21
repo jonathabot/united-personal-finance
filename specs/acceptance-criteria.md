@@ -1,5 +1,9 @@
 # Critérios de aceite do MVP
 
+> Estado da POC 1.0 local: critérios funcionais e financeiros cobertos pela
+> suíte automatizada. A inspeção visual final deve ser feita no navegador local
+> nos tamanhos de desktop e celular antes de qualquer publicação.
+
 ## Registro simples
 
 Dado que existe um cartão chamado Itaú, quando o usuário disser `gastei 20 reais

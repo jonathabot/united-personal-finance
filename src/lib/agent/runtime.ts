@@ -164,6 +164,33 @@ function transactionCorrectionArgumentsFromMessage(message: string) {
   return Object.keys(result).length ? result : undefined;
 }
 
+function transactionArgumentsFromMessage(message: string) {
+  const amountMatch = message.match(/(?:r\$\s*)?([\d.]+(?:,\d{1,2})?)\s*(k|mil)?/i);
+  if (!amountMatch) return undefined;
+  const multiplier = amountMatch[2] ? 1000 : 1;
+  const amountCents = parseDecimalToCents(amountMatch[1]) * multiplier;
+  const installmentCount = Number(message.match(/\b(\d{1,3})\s*(?:x|vezes|parcelas?)\b/i)?.[1] ?? 1);
+  const type = /\b(estorno|estornar)\b/i.test(message) ? "refund" as const
+    : /\b(transferi|transferência|transferencia)\b/i.test(message) ? "transfer" as const
+      : /\b(recebi|ganhei|caiu|pingou|freela)\b/i.test(message) ? "income" as const
+        : "expense" as const;
+  const category = /almo|restaurante|mercado|ifood|delivery|refei|jantar|sorvete/i.test(message) ? "Alimentação"
+    : type === "income" ? "Receitas extras"
+      : type === "refund" ? "Estornos"
+        : type === "transfer" ? "Transferências"
+          : undefined;
+  if (!category) return undefined;
+  return {
+    type,
+    amountCents,
+    description: message,
+    category,
+    paymentMethod: /nubank/i.test(message) ? "Nubank" : /ita[uú]/i.test(message) ? "Itaú" : "Não informado",
+    installmentCount,
+    belongsToThirdParty: /\b(?:pro|para o|para a|do|da)\s+(?:meu|minha)\b/i.test(message),
+  };
+}
+
 async function demoResult(messages: ConversationMessage[], repository: FinancialRepository, threadId: string): Promise<AgentResult> {
   const message = messages.at(-1)?.content ?? "";
   const referenceMonth = repository === demoFinancialRepository ? demoReferenceMonth as MonthKey : currentMonth();
@@ -182,15 +209,9 @@ async function demoResult(messages: ConversationMessage[], repository: Financial
       : month;
     return withProvider(await executeAgentTool("query_financial_overview", { month: requestedMonth }, repository, threadId), "demo");
   }
-  const amount = message.match(/(?:r\$\s*)?(\d+(?:[.,]\d{1,2})?)/i)?.[1];
-  if (/gastei|comprei|paguei/i.test(message) && amount) {
-    const installmentCount = Number(message.match(/\b(\d{1,3})\s*(?:x|vezes|parcelas?)\b/i)?.[1] ?? 1);
-    return withProvider(await executeAgentTool("create_transaction_draft", {
-      amountCents: parseDecimalToCents(amount), description: message,
-      category: /almo|restaurante|mercado/i.test(message) ? "Alimentação" : "A confirmar",
-      paymentMethod: /nubank/i.test(message) ? "Nubank" : /ita[uú]/i.test(message) ? "Itaú" : "Não informado",
-      installmentCount,
-    }, repository, threadId), "demo");
+  const transactionArguments = transactionArgumentsFromMessage(message);
+  if (transactionArguments) {
+    return withProvider(await executeAgentTool("create_transaction_draft", transactionArguments, repository, threadId), "demo");
   }
   if (/\b(confirmo|confirmar|confirma)\b/i.test(message)) return withProvider(await executeAgentTool("confirm_financial_change", { confirmed: true }, repository, threadId), "demo");
   if (/^(oi|olá|ola|bom dia|boa tarde|boa noite|teste)[!.?\s]*$/i.test(message)) return { text: "Olá! Posso consultar, analisar e simular suas finanças demonstrativas ou preparar um lançamento.", provider: "demo" };
@@ -227,6 +248,10 @@ export async function runAgent(messages: ConversationMessage[], repository: Fina
   }
   if (explicitIntent === "compare_financial_months") {
     return withProvider(await executeAgentTool(explicitIntent, comparisonArgumentsFromMessage(latestUserMessage, referenceMonth), repository, threadId), process.env.GROQ_API_KEY ? "groq" : "demo");
+  }
+  if (explicitIntent === "create_transaction_draft") {
+    const args = transactionArgumentsFromMessage(latestUserMessage);
+    if (args) return withProvider(await executeAgentTool(explicitIntent, args, repository, threadId), process.env.GROQ_API_KEY ? "groq" : "demo");
   }
   if (explicitIntent === "query_financial_overview") {
     return withProvider(await executeAgentTool(explicitIntent, overviewArgumentsFromMessage(latestUserMessage, referenceMonth), repository, threadId), process.env.GROQ_API_KEY ? "groq" : "demo");

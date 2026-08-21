@@ -15,20 +15,20 @@ export const agentRequestSchema = z.object({
 
 export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
 
-const transactionIntent = /\b(gastei|gasto|gastos|comprei|paguei|recebi|ganhei|estorno|estornar|transferi|transferência|transferencia|anota|anote|registra|registre|lança|lance|despesa|despesas|receita|compra|compras|transação|transacao|transações|transacoes)\b/i;
+const transactionIntent = /\b(gastei|gasto|gastos|comprei|paguei|recebi|ganhei|torrei|passei|caiu|pingou|freela|estorno|estornar|transferi|transferência|transferencia|anota|anote|registra|registre|lança|lance|despesa|despesas|receita|compra|compras|transação|transacao|transações|transacoes)\b/i;
 const invoiceIntent = /\b(fatura|faturas|cartão|cartões|parcelas?|vencimento)\b/i;
 const overviewIntent = /\b(finanças|financeiro|resumo|visão geral|situação|saldo|mês que vem|mes que vem|próximo mês|proximo mes|projeção|projecao|vou ficar|vai sobrar)\b/i;
-const analysisIntent = /\b(economizar|economia|gastando|gastos?|categoria|reduzir|cortar|onde.*dinheiro)\b/i;
+const analysisIntent = /\b(economizar|economia|gastando|gastos?|categoria|reduzir|cortar|onde.*(?:dinheiro|grana))\b/i;
 const simulationIntent = /\b(e se|simula|simule|cenário|cenario|reduzir.*%|metade)\b/i;
 const comparisonIntent = /\b(compare|comparar|comparação|comparacao|diferença|diferenca|evolução|evolucao)\b.*\b(mês|mes|20\d{2}|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/i;
 const confirmationIntent = /\b(confirmo|confirmar|confirma|pode salvar|pode lançar)\b/i;
-const cancellationIntent = /\b(cancele|cancelar|cancela|descarte|não salve|nao salve)\b/i;
+const cancellationIntent = /\b(cancele|cancelar|cancela|descarte|não salv[ae]|nao salv[ae]|deixa quieto)\b/i;
 const valueChangeIntent = /\b(aumentou|aumente|diminuiu|reduza|alter(?:e|ou)|mude).*(?:r\$|reais|valor)|\b(?:salário|salario|internet|energia|água|agua|academia).*(?:passa|passou|será|sera).*r\$/i;
 const closeEntityIntent = /\b(quitei|quitar|quite|encerre|encerrar|remova|retire).*(?:próxim|proxim|futur|tabela|m[eê]s)|\b(quitei|quitar|quite)\b/i;
 const entityCreateIntent = /\b(cadastre|cadastrar|crie|criar|adicione|adicionar|novo|nova|meu salário|meu salario).*(salário|salario|cartão|cartao|fixo|fixa|internet|energia|água|agua|academia|empréstimo|emprestimo|reserva|conta)\b|\b(meu salário|meu salario)\s+(é|e)(?:\s|$)/i;
 const renameEntityIntent = /\b(mude|altere|renomeie|troque).*(nome|para)\b/i;
-const transactionCorrectionIntent = /\b(na verdade|corrija|corrige|corrigir|mude|altere|troque|marque).*(?:r\$|reais|valor|categoria|descrição|descricao|data|meio\s+de\s+pagamento|pagamento|cartão|cartao|conta|terceiro|pessoal)|\b(?:categoria|descrição|descricao|data|meio\s+de\s+pagamento).*(?:para|é|e)\b/i;
-const transactionVoidIntent = /\b(desfaça|desfaca|desfazer|estorne|estornar|anule|anular|exclua|remova|cancele|cancelar)\b.*\b(?:lançamento|lancamento|transação|transacao|despesa|compra)\b/i;
+const transactionCorrectionIntent = /\b(na verdade|corrija|corrige|corrigir|mude|altere|troque|marque).*(?:r\$|reais|valor|categoria|descrição|descricao|data|meio\s+de\s+pagamento|pagamento|cartão|cartao|conta|terceiro|pessoal)|\b(?:categoria|descrição|descricao|data|meio\s+de\s+pagamento).*(?:para|é|e)\b|\b(?:essa|a)\s+compra\s+era\s+(?:do|da|de)\b/i;
+const transactionVoidIntent = /\b(desfaça|desfaca|desfazer|estorne|estornar|anule|anular|exclua|remova|cancele|cancelar|apague|apaga)\b.*\b(?:lançamento|lancamento|transação|transacao|despesa|compra)\b/i;
 const anticipationIntent = /\b(antecipe|antecipar|antecipação|antecipacao)\b.*\b(parcelas?|últimas?|ultimas?)\b/i;
 const historyIntent = /\b(histórico|historico|lançamentos recentes|lancamentos recentes|minhas transações|minhas transacoes)\b/i;
 

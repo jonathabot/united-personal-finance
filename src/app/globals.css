@@ -27,6 +27,16 @@ button { color: inherit; }
 .railBrand, .railAvatar { display: grid; place-items: center; border: 0; border-radius: 50%; color: white; background: var(--green); font-weight: 750; text-decoration: none; cursor: pointer; }
 .railBrand { width: 40px; height: 40px; margin-bottom: 10px; font-size: 19px; }
 .railAvatar { width: 36px; height: 36px; font-size: 13px; }
+.accountMenu { position: relative; }
+.accountMenu > summary { list-style: none; }
+.accountMenu > summary::-webkit-details-marker { display: none; }
+.accountMenu[open] > summary { box-shadow: 0 0 0 3px var(--green-soft); }
+.accountPopover { position: absolute; left: 48px; bottom: 0; width: 240px; padding: 14px; display: grid; gap: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 12px 35px rgba(32,32,31,.14); }
+.accountPopover strong { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.accountLabel { color: var(--muted); font-size: 11px; }
+.accountPopover form { margin-top: 5px; padding-top: 10px; border-top: 1px solid var(--line); }
+.logoutButton { width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; color: var(--red); background: transparent; font-weight: 650; text-align: left; cursor: pointer; }
+.logoutButton:hover { background: var(--red-soft); }
 .railButton { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 12px; background: transparent; cursor: pointer; }
 .railButton svg { width: 21px; }
 .railButton:hover, .railButton.active { color: var(--green-dark); background: var(--green-soft); }
