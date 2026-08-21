@@ -266,8 +266,9 @@ agendada, sem bloquear cada execução local ou pull request.
    Agent Evals, build e Playwright em pushes e pull requests da branch `main`.
    Falhas E2E preservam traces e screenshots como artefatos por sete dias.
 4. **Testar a integração com Supabase:** validar RLS entre usuários, confirmação
-   duplicada, concorrência, expiração de rascunhos, auditoria, desfazer e
-   migrations em um banco isolado.
+   duplicada, expiração de rascunhos, auditoria e migrations em um banco
+   efêmero. Essa suíte roda somente no GitHub Actions para não consumir recursos
+   da máquina de desenvolvimento.
 5. **Organizar a entrega:** revisar as alterações, criar o commit da versão e a
    tag `v1.0.0`, mantendo as limitações conhecidas documentadas.
 6. **Executar a fase pós-POC:** publicar na Vercel, adicionar PWA,

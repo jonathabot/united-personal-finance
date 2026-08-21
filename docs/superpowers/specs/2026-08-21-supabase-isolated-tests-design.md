@@ -26,9 +26,10 @@ auditing.
 
 ## Architecture
 
-The project will use the Supabase CLI as a development dependency and commit a
-safe `supabase/config.toml`. Docker hosts an ephemeral local Supabase stack;
-neither the application nor the tests receive hosted-project credentials.
+The project commits a safe `supabase/config.toml`, but does not install the
+Supabase CLI as an application dependency. Docker hosts an ephemeral Supabase
+database only inside GitHub Actions; neither the developer workstation nor the
+tests receive hosted-project credentials.
 
 Database tests live under `supabase/tests/database/` and use pgTAP. Each test
 opens a transaction, creates deterministic users and fixtures, switches to the
@@ -41,17 +42,12 @@ do not mock `auth.uid()` or the persistence layer. The existing Vitest suite
 continues to cover TypeScript domain and repository behavior; pgTAP owns database
 semantics that require a real PostgreSQL/Supabase runtime.
 
-## Local Workflow
+## Execution Boundary
 
-The supported commands will be exposed as npm scripts:
-
-- `npm run supabase:start` starts the local stack and applies migrations;
-- `npm run supabase:reset` rebuilds the local database from all migrations;
-- `npm run test:supabase` runs the pgTAP suite against the local stack;
-- `npm run supabase:stop` stops local containers.
-
-The reset command is explicitly local. No script will include `--linked`, run
-`db push`, or accept a hosted database URL.
+Database containers and pgTAP tests run only on GitHub-hosted runners. The
+project exposes no npm command that starts Supabase locally, preventing this
+suite from consuming memory or CPU on the developer workstation. No command
+includes `--linked`, runs `db push`, or accepts a hosted database URL.
 
 ## Continuous Integration
 
@@ -85,8 +81,6 @@ specifically inspecting side effects after the user action.
 
 ## Files
 
-- `package.json`: project-scoped CLI dependency and local database scripts.
-- `package-lock.json`: locked Supabase CLI version.
 - `supabase/config.toml`: committed local project configuration without secrets.
 - `supabase/tests/database/*.test.sql`: pgTAP security and workflow tests.
 - `.github/workflows/ci.yml`: isolated database job.
