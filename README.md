@@ -208,6 +208,7 @@ Estado da validação da POC 1.0:
 - 95 testes aprovados em 11 arquivos.
 - 25 Agent Evals determinísticos em português, sem consumo da API da Groq.
 - 5 cenários E2E aprovados nos projetos desktop e mobile do Playwright.
+- 12 testes pgTAP do Supabase executados somente no GitHub Actions.
 - Screenshots reproduzíveis gerados em `docs/screenshots/`.
 - Lint aprovado.
 - TypeScript aprovado durante o build.
@@ -265,10 +266,10 @@ agendada, sem bloquear cada execução local ou pull request.
 3. **✅ Configurar GitHub Actions:** workflow executa lint, testes unitários,
    Agent Evals, build e Playwright em pushes e pull requests da branch `main`.
    Falhas E2E preservam traces e screenshots como artefatos por sete dias.
-4. **Testar a integração com Supabase:** validar RLS entre usuários, confirmação
-   duplicada, expiração de rascunhos, auditoria e migrations em um banco
-   efêmero. Essa suíte roda somente no GitHub Actions para não consumir recursos
-   da máquina de desenvolvimento.
+4. **✅ Testar a integração com Supabase:** 12 testes pgTAP validam migrations,
+   RLS entre usuários, confirmação idempotente, expiração persistente e
+   auditoria em um banco efêmero. A suíte roda somente no GitHub Actions para
+   não consumir recursos da máquina de desenvolvimento.
 5. **Organizar a entrega:** revisar as alterações, criar o commit da versão e a
    tag `v1.0.0`, mantendo as limitações conhecidas documentadas.
 6. **Executar a fase pós-POC:** publicar na Vercel, adicionar PWA,
