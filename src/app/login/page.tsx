@@ -5,10 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { login, signup } from "./actions";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; message?: string }> }) {
-  if (!isSupabaseConfigured()) redirect("/");
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) redirect("/");
+  const supabaseConfigured = isSupabaseConfigured();
+  const isE2EPreview = process.env.E2E_LOGIN_PREVIEW === "1";
+  if (!supabaseConfigured && !isE2EPreview) redirect("/");
+  if (supabaseConfigured) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) redirect("/");
+  }
   const params = await searchParams;
   return <main className="authPage"><section className="authCard">
     <div className="authBrand"><WalletCards /><span>United Finance</span></div>

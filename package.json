@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:evals": "vitest run src/lib/agent/evals",
+    "test:e2e": "node scripts/run-playwright.mjs",
+    "screenshots": "node scripts/run-playwright.mjs e2e/demo-chat.spec.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -27,6 +29,7 @@
     "zod": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

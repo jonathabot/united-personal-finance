@@ -11,6 +11,18 @@ as tools, a persistência no Supabase e o catálogo visual estão integrados e
 validados localmente. Publicação, instalação como PWA e observabilidade ficam
 para a etapa pós-POC.
 
+## Capturas da interface
+
+### Desktop
+
+![United Finance em modo desktop](docs/screenshots/united-finance-desktop.png)
+
+### Mobile
+
+| Tela de login | Conversa textual | Projeção financeira |
+| :---: | :---: | :---: |
+| ![Tela de login mobile do United Finance](docs/screenshots/united-finance-mobile-login.png) | ![Conversa textual no United Finance mobile](docs/screenshots/united-finance-mobile-conversation.png) | ![Projeção financeira no United Finance mobile](docs/screenshots/united-finance-mobile.png) |
+
 ## Arquitetura atual
 
 ```mermaid
@@ -68,6 +80,7 @@ flowchart LR
 | Recharts | Gráficos financeiros responsivos renderizados no navegador. |
 | Supabase JS + SSR | Autenticação por cookies e acesso ao Postgres respeitando RLS. |
 | Vitest | Testes unitários do domínio. |
+| Playwright | Testes E2E e geração das capturas desktop e mobile. |
 | ESLint | Análise estática do código. |
 
 ### Planejado
@@ -182,14 +195,18 @@ Essas perguntas acionam as tools determinísticas de projeção, comparação, a
 ```bash
 npm test
 npm run test:evals
+npm run test:e2e
+npm run screenshots
 npm run lint
 npm run build
 ```
 
 Estado da validação da POC 1.0:
 
-- 85 testes aprovados em 11 arquivos.
-- 15 Agent Evals determinísticos em português, sem consumo da API da Groq.
+- 95 testes aprovados em 11 arquivos.
+- 25 Agent Evals determinísticos em português, sem consumo da API da Groq.
+- 5 cenários E2E aprovados nos projetos desktop e mobile do Playwright.
+- Screenshots reproduzíveis gerados em `docs/screenshots/`.
 - Lint aprovado.
 - TypeScript aprovado durante o build.
 - Build de produção aprovado.
@@ -235,18 +252,19 @@ agendada, sem bloquear cada execução local ou pull request.
 
 ## Plano de qualidade pós-POC
 
-1. **Expandir os Agent Evals:** adicionar ambiguidades entre cartões e contas,
+1. **✅ Expandir os Agent Evals:** adicionar ambiguidades entre cartões e contas,
    correções contextuais, valores coloquiais como “1,5k” e “cinquentinha”,
    variações regionais, erros de digitação e casos negativos contra acionamento
-   indevido de tools.
-2. **Testar a integração com Supabase:** validar RLS entre usuários, confirmação
+   indevido de tools. Primeira expansão concluída com 25 evals determinísticos.
+2. **✅ Adicionar testes E2E com Playwright:** base local concluída para o modo
+   demo, cobrindo carregamento, composer, resposta financeira, ausência de
+   overflow horizontal e screenshots de desktop e celular. Login, onboarding e
+   persistência autenticada entram na etapa 4 com o ambiente Supabase isolado.
+3. **Configurar GitHub Actions:** executar lint, testes unitários, Agent Evals,
+   build, integração Supabase e Playwright em cada pull request.
+4. **Testar a integração com Supabase:** validar RLS entre usuários, confirmação
    duplicada, concorrência, expiração de rascunhos, auditoria, desfazer e
    migrations em um banco isolado.
-3. **Adicionar testes E2E com Playwright:** cobrir cadastro, login, logout,
-   onboarding, criação e confirmação de despesas, correção, desfazer, faturas,
-   projeções e viewports de desktop e celular.
-4. **Configurar GitHub Actions:** executar lint, testes unitários, Agent Evals,
-   build, integração Supabase e Playwright em cada pull request.
 5. **Organizar a entrega:** revisar as alterações, criar o commit da versão e a
    tag `v1.0.0`, mantendo as limitações conhecidas documentadas.
 6. **Executar a fase pós-POC:** publicar na Vercel, adicionar PWA,

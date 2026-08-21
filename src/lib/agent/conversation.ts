@@ -15,7 +15,8 @@ export const agentRequestSchema = z.object({
 
 export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
 
-const transactionIntent = /\b(gastei|gasto|gastos|comprei|paguei|recebi|ganhei|torrei|passei|caiu|pingou|freela|estorno|estornar|transferi|transferência|transferencia|anota|anote|registra|registre|lança|lance|despesa|despesas|receita|compra|compras|transação|transacao|transações|transacoes)\b/i;
+const transactionIntent = /\b(gastei|gasto|gastos|comprei|paguei|recebi|ganhei|estorno|estornar|transferi|transferência|transferencia|anota|anote|registra|registre|lança|lance|despesa|despesas|receita|compra|compras|transação|transacao|transações|transacoes)\b/i;
+const colloquialTransactionIntent = /\b(torrei|passei|caiu|pingou)\b(?=[^.!?]*(?:r\$|\d|cinquentinha|duzentos?\s+contos?|conto|pila))/i;
 const invoiceIntent = /\b(fatura|faturas|cartão|cartões|parcelas?|vencimento)\b/i;
 const overviewIntent = /\b(finanças|financeiro|resumo|visão geral|situação|saldo|mês que vem|mes que vem|próximo mês|proximo mes|projeção|projecao|vou ficar|vai sobrar)\b/i;
 const analysisIntent = /\b(economizar|economia|gastando|gastos?|categoria|reduzir|cortar|onde.*(?:dinheiro|grana))\b/i;
@@ -33,7 +34,7 @@ const anticipationIntent = /\b(antecipe|antecipar|antecipação|antecipacao)\b.*
 const historyIntent = /\b(histórico|historico|lançamentos recentes|lancamentos recentes|minhas transações|minhas transacoes)\b/i;
 
 export function isToolAllowed(toolName: string, latestUserMessage: string) {
-  if (toolName === "create_transaction_draft") return transactionIntent.test(latestUserMessage);
+  if (toolName === "create_transaction_draft") return transactionIntent.test(latestUserMessage) || colloquialTransactionIntent.test(latestUserMessage);
   if (toolName === "query_financial_overview") return invoiceIntent.test(latestUserMessage) || overviewIntent.test(latestUserMessage);
   if (toolName === "compare_financial_months") return comparisonIntent.test(latestUserMessage);
   if (toolName === "analyze_spending") return analysisIntent.test(latestUserMessage);
@@ -65,7 +66,7 @@ export function inferToolFromIntent(message: string) {
   if (entityCreateIntent.test(message)) return "create_financial_entity_draft" as const;
   if (simulationIntent.test(message)) return "simulate_financial_scenario" as const;
   if (comparisonIntent.test(message)) return "compare_financial_months" as const;
-  if (transactionIntent.test(message)) return "create_transaction_draft" as const;
+  if (transactionIntent.test(message) || colloquialTransactionIntent.test(message)) return "create_transaction_draft" as const;
   if (analysisIntent.test(message)) return "analyze_spending" as const;
   if (invoiceIntent.test(message) || overviewIntent.test(message)) return "query_financial_overview" as const;
   return undefined;

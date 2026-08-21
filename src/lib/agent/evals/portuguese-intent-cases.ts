@@ -19,6 +19,11 @@ export const portugueseIntentEvals: PortugueseIntentEval[] = [
   { id: "slang-void", utterance: "Apaga a última compra", expectedIntent: "void_latest_transaction_draft" },
   { id: "confirmation", utterance: "Pode lançar", expectedIntent: "confirm_financial_change" },
   { id: "cancellation", utterance: "Deixa quieto, não salva", expectedIntent: "cancel_financial_change" },
+  { id: "typo-spending", utterance: "Gastei 30 reais no mercdo", expectedIntent: "create_transaction_draft" },
+  { id: "regional-spending-pila", utterance: "Gastei 30 pila no mercado", expectedIntent: "create_transaction_draft" },
+  { id: "negative-passei", utterance: "Passei no mercado para olhar os preços", expectedIntent: undefined },
+  { id: "negative-caiu", utterance: "O dinheiro caiu no chão", expectedIntent: undefined },
+  { id: "negative-freela", utterance: "Freela é uma modalidade de trabalho", expectedIntent: undefined },
   { id: "small-talk", utterance: "E aí, tudo bem?", expectedIntent: undefined },
   { id: "unrelated", utterance: "Me conta uma piada", expectedIntent: undefined },
 ];

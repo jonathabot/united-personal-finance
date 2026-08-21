@@ -160,21 +160,24 @@ function transactionCorrectionArgumentsFromMessage(message: string) {
   if (occurredOn) result.occurredOn = occurredOn;
   if (paymentMethod) result.paymentMethod = paymentMethod;
   if (/\b(?:não|nao)\s+(?:é|e|foi|pertence)\s+(?:de|para)\s+(?:um\s+)?terceiro|\b(?:despesa|compra|lançamento|lancamento)\s+pessoal\b|\b(?:é|e)\s+(?:meu|minha)\b/i.test(message)) result.belongsToThirdParty = false;
-  else if (/\b(?:é|e|foi|pertence)\s+(?:de|para)\s+(?:um\s+)?terceiro|para meu|para minha/i.test(message)) result.belongsToThirdParty = true;
+  else if (/\b(?:é|e|foi|pertence)\s+(?:de|para)\s+(?:um\s+)?terceiro|para meu|para minha|\bera\s+(?:do|da)\s+(?:meu|minha)\b/i.test(message)) result.belongsToThirdParty = true;
   return Object.keys(result).length ? result : undefined;
 }
 
 function transactionArgumentsFromMessage(message: string) {
   const amountMatch = message.match(/(?:r\$\s*)?([\d.]+(?:,\d{1,2})?)\s*(k|mil)?/i);
-  if (!amountMatch) return undefined;
-  const multiplier = amountMatch[2] ? 1000 : 1;
-  const amountCents = parseDecimalToCents(amountMatch[1]) * multiplier;
+  const colloquialAmountCents = /\bcinquentinha\b/i.test(message) ? 5000
+    : /\bduzentos?\s+contos?\b/i.test(message) ? 20000
+      : undefined;
+  if (!amountMatch && colloquialAmountCents === undefined) return undefined;
+  const multiplier = amountMatch?.[2] ? 1000 : 1;
+  const amountCents = colloquialAmountCents ?? parseDecimalToCents(amountMatch![1]) * multiplier;
   const installmentCount = Number(message.match(/\b(\d{1,3})\s*(?:x|vezes|parcelas?)\b/i)?.[1] ?? 1);
   const type = /\b(estorno|estornar)\b/i.test(message) ? "refund" as const
     : /\b(transferi|transferência|transferencia)\b/i.test(message) ? "transfer" as const
       : /\b(recebi|ganhei|caiu|pingou|freela)\b/i.test(message) ? "income" as const
         : "expense" as const;
-  const category = /almo|restaurante|mercado|ifood|delivery|refei|jantar|sorvete/i.test(message) ? "Alimentação"
+  const category = /almo|restaurante|merc(?:a)?do|ifood|delivery|refei|jantar|sorvete/i.test(message) ? "Alimentação"
     : type === "income" ? "Receitas extras"
       : type === "refund" ? "Estornos"
         : type === "transfer" ? "Transferências"
