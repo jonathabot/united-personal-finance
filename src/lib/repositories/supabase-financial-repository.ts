@@ -234,6 +234,9 @@ export class SupabaseFinancialRepository implements FinancialRepository {
           : draft.action === "create_transaction" && (draft.payload as Record<string, unknown>)?.type !== "expense" ? "confirm_extended_transaction" : "confirm_financial_change";
     const { data, error } = await this.client.rpc(rpc, { p_draft_id: draft.id });
     if (error) throw new Error(`Não foi possível confirmar a mudança: ${error.message}`);
+    if ((data as { status?: string } | null)?.status === "expired") {
+      throw new Error("Não foi possível confirmar a mudança: Rascunho expirado.");
+    }
     return data as { action: string; referenceId: string };
   }
 

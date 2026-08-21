@@ -82,11 +82,10 @@ insert into public.pending_financial_changes (
   now() - interval '1 minute'
 );
 
-select throws_ok(
-  $$select public.confirm_financial_change('70000000-0000-0000-0000-000000000007')$$,
-  'P0001',
-  'Rascunho expirado.',
-  'An expired draft cannot be confirmed'
+select results_eq(
+  $$select public.confirm_financial_change('70000000-0000-0000-0000-000000000007') ->> 'status'$$,
+  array['expired'::text],
+  'An expired draft returns its terminal status instead of being confirmed'
 );
 
 select results_eq(
