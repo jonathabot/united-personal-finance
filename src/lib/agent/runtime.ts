@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 import type { A2UIPayload } from "@/lib/a2ui/schema";
 import { parseDecimalToCents } from "@/lib/money";
 import { addMonths, monthKey, type MonthKey } from "@/lib/finance";
-import { agentToolDefinitions, executeAgentTool, toolSchemas, type ToolName } from "@/lib/tools";
+import { agentToolDefinitions, executeAgentTool, explainFinancialComparison, toolSchemas, type ToolName } from "@/lib/tools";
 import { demoFinancialRepository, type FinancialRepository } from "@/lib/repositories";
 import { inferToolFromIntent, isCapabilityQuestion, isToolAllowed, unsupportedCapabilityMessage, type ConversationMessage } from "./conversation";
 
@@ -12,6 +12,17 @@ const demoReferenceMonth = "2026-08";
 
 function withProvider(result: { text: string; ui?: A2UIPayload }, provider: AgentResult["provider"]): AgentResult {
   return { ...result, provider };
+}
+
+function plainTextModelResponse(content: string) {
+  return content
+    .replace(/```(?:\w+)?\s*([\s\S]*?)```/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/\[([^\]]+)]\(([^)]+)\)/g, "$1 ($2)")
+    .trim();
 }
 
 function currentMonth(timeZone = "America/Sao_Paulo"): MonthKey {
@@ -37,6 +48,34 @@ function comparisonArgumentsFromMessage(message: string, referenceMonth: MonthKe
   if (named.length >= 2) return { monthA: named[0], monthB: named[1] };
   if (/m[eê]s\s+(?:passado|anterior)/i.test(message)) return { monthA: addMonths(referenceMonth, -1), monthB: referenceMonth };
   return { monthA: referenceMonth, monthB: addMonths(referenceMonth, 1) };
+}
+
+function latestComparisonMonths(messages: ConversationMessage[]) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== "assistant") continue;
+    const match = message.content.match(/\bDe\s+(20\d{2}-\d{2})\s+para\s+(20\d{2}-\d{2}),\s+o saldo projetado\b/i);
+    if (match) return { monthA: match[1] as MonthKey, monthB: match[2] as MonthKey };
+  }
+  return undefined;
+}
+
+function contextualComparisonArguments(messages: ConversationMessage[], message: string) {
+  const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const match = message.match(/^\s*e\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de\s+(20\d{2}))?[?.!\s]*$/i);
+  const previous = latestComparisonMonths(messages);
+  if (!match || !previous) return undefined;
+  const targetMonthNumber = monthNames.findIndex((name) => name.localeCompare(match[1], "pt-BR", { sensitivity: "base" }) === 0) + 1;
+  const [previousYear, previousMonthNumber] = previous.monthB.split("-").map(Number);
+  const targetYear = match[2] ? Number(match[2]) : targetMonthNumber <= previousMonthNumber ? previousYear + 1 : previousYear;
+  return { monthA: previous.monthB, monthB: `${targetYear}-${String(targetMonthNumber).padStart(2, "0")}` as MonthKey };
+}
+
+function claimedComparisonDirection(message: string) {
+  if (!/\bpor\s+que\b/i.test(message)) return undefined;
+  if (/\b(melhorou|aumentou|subiu)\b/i.test(message)) return "improved" as const;
+  if (/\b(piorou|diminuiu|caiu)\b/i.test(message)) return "worsened" as const;
+  return undefined;
 }
 
 function scenarioArgumentsFromMessage(message: string, referenceMonth: MonthKey) {
@@ -163,6 +202,15 @@ export async function runAgent(messages: ConversationMessage[], repository: Fina
   const persistentData = repository !== demoFinancialRepository;
   const referenceMonth = persistentData ? currentMonth() : demoReferenceMonth as MonthKey;
   const explicitIntent = inferToolFromIntent(latestUserMessage);
+  const comparisonExplanation = !explicitIntent ? claimedComparisonDirection(latestUserMessage) : undefined;
+  const previousComparison = comparisonExplanation ? latestComparisonMonths(messages) : undefined;
+  if (comparisonExplanation && previousComparison) {
+    return withProvider(await explainFinancialComparison(previousComparison.monthA, previousComparison.monthB, comparisonExplanation, repository), process.env.GROQ_API_KEY ? "groq" : "demo");
+  }
+  const comparisonFollowUp = !explicitIntent ? contextualComparisonArguments(messages, latestUserMessage) : undefined;
+  if (comparisonFollowUp) {
+    return withProvider(await executeAgentTool("compare_financial_months", comparisonFollowUp, repository, threadId), process.env.GROQ_API_KEY ? "groq" : "demo");
+  }
   if (explicitIntent === "correct_latest_transaction_draft") {
     const args = transactionCorrectionArgumentsFromMessage(latestUserMessage);
     if (args) return withProvider(await executeAgentTool(explicitIntent, args, repository, threadId), process.env.GROQ_API_KEY ? "groq" : "demo");
@@ -239,14 +287,15 @@ Para antecipar parcelas futuras do último parcelamento, use anticipate_installm
 Quando o usuário disser confirmar após um card de alteração financeira, use confirm_financial_change. Nunca afirme que um rascunho foi salvo antes dessa confirmação.
 Use valores inteiros em centavos e meses no formato YYYY-MM. Se faltar valor, vigência, fechamento ou vencimento indispensável, peça esclarecimento antes da tool.
 Sempre considere todo o histórico recebido. Se sua mensagem anterior pediu uma informação ausente e o usuário responder apenas "dia 18", "Nubank", "agosto" ou outra resposta curta, combine essa resposta com o pedido financeiro anterior e execute a tool apropriada; não trate como uma nova conversa.
-Não acione tools para cumprimentos ou conversa geral. Se faltar uma informação indispensável, peça esclarecimento.` }, ...messages],
+Não acione tools para cumprimentos ou conversa geral. Se faltar uma informação indispensável, peça esclarecimento.
+Responda em texto simples, sem Markdown, asteriscos, crases ou títulos com #.` }, ...messages],
     tools: agentToolDefinitions,
     tool_choice: "auto",
     temperature: 0,
   });
   const answer = completion.choices[0]?.message;
   const call = answer?.tool_calls?.[0];
-  if (!call || call.type !== "function") return { text: answer?.content || "Não consegui interpretar esse pedido.", provider: "groq" };
+  if (!call || call.type !== "function") return { text: plainTextModelResponse(answer?.content || "Não consegui interpretar esse pedido."), provider: "groq" };
   if (!(call.function.name in toolSchemas)) return { text: "A operação solicitada não existe.", provider: "groq" };
   const recentUserContext = messages.filter((message) => message.role === "user").slice(-4).map((message) => message.content).join(" ");
   if (!isToolAllowed(call.function.name, latestUserMessage) && !isToolAllowed(call.function.name, recentUserContext)) {

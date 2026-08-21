@@ -1,6 +1,6 @@
 import { buildClarification, buildErrorCard, buildFinancialChangeConfirmation, buildFinancialOverview, buildFinancialTable, buildScenarioComparison, buildSpendingAnalysis, buildTransactionConfirmation, type TransactionDraft } from "../a2ui/builders";
 import type { A2UIPayload } from "../a2ui/schema";
-import { addMonths, analyzeCategorySpending, calculateMonthlyProjection, calculateMonthlySummary, simulateCategoryReduction, type MonthKey } from "../finance";
+import { addMonths, analyzeCategorySpending, calculateMonthlyProjection, calculateMonthlySummary, hasCategorySpendingHistory, simulateCategoryReduction, type MonthKey } from "../finance";
 import { formatCurrency } from "../money";
 import { demoFinancialRepository, type FinancialRepository } from "../repositories";
 import { toolSchemas, type ToolName } from "./schemas";
@@ -29,10 +29,10 @@ async function overview(month: MonthKey, repository: FinancialRepository): Promi
     futureCents: installments.filter((item) => item.entityId === statement.cardId && item.statementMonth > month && item.status !== "voided").reduce((sum, item) => sum + item.amountCents, 0),
   }));
   const projectionText = projection
-    ? ` O saldo projetado é ${formatCurrency(projection.projectedBalanceCents)} e a situação é ${statusLabels[projection.status]}.`
+    ? ` Pelas premissas da projeção, os compromissos projetados somam ${formatCurrency(projection.committedCents)}, o saldo projetado é ${formatCurrency(projection.projectedBalanceCents)} e a situação é ${statusLabels[projection.status]}.`
     : " Ainda não há premissas de projeção cadastradas para esse mês.";
   return {
-    text: `Em ${month}, as faturas somam ${formatCurrency(summary.invoiceTotalCents)} e as despesas pessoais registradas somam ${formatCurrency(summary.personalExpensesCents)}.${projectionText}`,
+    text: `Em ${month}, as faturas somam ${formatCurrency(summary.invoiceTotalCents)}. Os gastos líquidos registrados no mês somam ${formatCurrency(summary.personalExpensesCents)}.${projectionText}`,
     ui: projection ? buildFinancialOverview(
       month,
       projection,
@@ -42,6 +42,70 @@ async function overview(month: MonthKey, repository: FinancialRepository): Promi
       }),
       rows,
     ) : buildErrorCard(`Não há premissas de projeção cadastradas para ${month}.`),
+  };
+}
+
+async function comparisonSnapshots(monthA: MonthKey, monthB: MonthKey, repository: FinancialRepository) {
+  const { projections } = await repository.getDataset();
+  const inputA = projections.find((item) => item.month === monthA);
+  const inputB = projections.find((item) => item.month === monthB);
+  if (!inputA || !inputB) return undefined;
+  return { a: calculateMonthlyProjection(inputA), b: calculateMonthlyProjection(inputB) };
+}
+
+function comparisonTable(monthA: MonthKey, monthB: MonthKey, snapshots: NonNullable<Awaited<ReturnType<typeof comparisonSnapshots>>>) {
+  const statusLabels = { comfortable: "Confortável", attention: "Atenção", critical: "Crítica" } as const;
+  const rows = [snapshots.a, snapshots.b].map((item) => ({
+    month: item.month,
+    incomeCents: item.incomeCents,
+    committedCents: item.committedCents,
+    balanceCents: item.projectedBalanceCents,
+    status: statusLabels[item.status],
+  }));
+  return buildFinancialTable(`comparison-${monthA}-${monthB}`, `Comparação ${monthA} × ${monthB}`, [
+    { key: "month", label: "Mês", format: "text" }, { key: "incomeCents", label: "Receita", format: "currency" },
+    { key: "committedCents", label: "Comprometido", format: "currency" }, { key: "balanceCents", label: "Saldo", format: "currency" },
+    { key: "status", label: "Situação", format: "badge" },
+  ], rows);
+}
+
+async function compareFinancialMonths(monthA: MonthKey, monthB: MonthKey, repository: FinancialRepository): Promise<ToolExecutionResult> {
+  const snapshots = await comparisonSnapshots(monthA, monthB, repository);
+  if (!snapshots) return { text: "Não há premissas suficientes para comparar os dois meses.", ui: buildErrorCard(`A comparação exige projeções disponíveis para ${monthA} e ${monthB}.`) };
+  const delta = snapshots.b.projectedBalanceCents - snapshots.a.projectedBalanceCents;
+  const direction = delta > 0 ? "aumenta" : delta < 0 ? "diminui" : "permanece igual";
+  return {
+    text: `De ${monthA} para ${monthB}, o saldo projetado ${direction}${delta ? ` em ${formatCurrency(Math.abs(delta))}` : ""}, passando de ${formatCurrency(snapshots.a.projectedBalanceCents)} para ${formatCurrency(snapshots.b.projectedBalanceCents)}.`,
+    ui: comparisonTable(monthA, monthB, snapshots),
+  };
+}
+
+function deltaExplanation(value: number, subject: string, increased: string, decreased: string) {
+  if (value > 0) return `${subject} ${increased} em ${formatCurrency(value)}`;
+  if (value < 0) return `${subject} ${decreased} em ${formatCurrency(Math.abs(value))}`;
+  return `${subject} permaneceu igual`;
+}
+
+export async function explainFinancialComparison(
+  monthA: MonthKey,
+  monthB: MonthKey,
+  claimedDirection: "improved" | "worsened" | undefined,
+  repository: FinancialRepository = demoFinancialRepository,
+): Promise<ToolExecutionResult> {
+  const snapshots = await comparisonSnapshots(monthA, monthB, repository);
+  if (!snapshots) return { text: "Não há premissas suficientes para explicar a comparação.", ui: buildErrorCard(`A explicação exige projeções disponíveis para ${monthA} e ${monthB}.`) };
+  const incomeDelta = snapshots.b.incomeCents - snapshots.a.incomeCents;
+  const committedDelta = snapshots.b.committedCents - snapshots.a.committedCents;
+  const balanceDelta = snapshots.b.projectedBalanceCents - snapshots.a.projectedBalanceCents;
+  const actualDirection = balanceDelta > 0 ? "improved" : balanceDelta < 0 ? "worsened" : "stable";
+  const directionLabel = actualDirection === "improved" ? "melhorou" : actualDirection === "worsened" ? "piorou" : "permaneceu igual";
+  const comparisonLead = claimedDirection && claimedDirection !== actualDirection ? "Na verdade, de" : "De";
+  const income = deltaExplanation(incomeDelta, "a receita", "aumentou", "diminuiu");
+  const commitments = deltaExplanation(committedDelta, "os compromissos", "aumentaram", "diminuíram");
+  const variation = balanceDelta ? ` em ${formatCurrency(Math.abs(balanceDelta))}` : "";
+  return {
+    text: `${comparisonLead} ${monthA} para ${monthB}, o saldo projetado ${directionLabel}${variation}, passando de ${formatCurrency(snapshots.a.projectedBalanceCents)} para ${formatCurrency(snapshots.b.projectedBalanceCents)}, porque ${income} e ${commitments}. Esses efeitos explicam integralmente a variação do saldo.`,
+    ui: comparisonTable(monthA, monthB, snapshots),
   };
 }
 
@@ -90,26 +154,9 @@ export async function executeAgentTool(name: ToolName, rawArguments: unknown, re
   }
   if (name === "query_financial_overview") return overview(args.month as MonthKey, repository);
   if (name === "compare_financial_months") {
-    const { projections } = await repository.getDataset();
     const monthA = args.monthA as MonthKey;
     const monthB = args.monthB as MonthKey;
-    const inputA = projections.find((item) => item.month === monthA);
-    const inputB = projections.find((item) => item.month === monthB);
-    if (!inputA || !inputB) return { text: "Não há premissas suficientes para comparar os dois meses.", ui: buildErrorCard(`A comparação exige projeções disponíveis para ${monthA} e ${monthB}.`) };
-    const a = calculateMonthlyProjection(inputA);
-    const b = calculateMonthlyProjection(inputB);
-    const delta = b.projectedBalanceCents - a.projectedBalanceCents;
-    const direction = delta > 0 ? "aumenta" : delta < 0 ? "diminui" : "permanece igual";
-    const statusLabels = { comfortable: "Confortável", attention: "Atenção", critical: "Crítica" } as const;
-    const rows = [a, b].map((item) => ({ month: item.month, incomeCents: item.incomeCents, committedCents: item.committedCents, balanceCents: item.projectedBalanceCents, status: statusLabels[item.status] }));
-    return {
-      text: `De ${monthA} para ${monthB}, o saldo projetado ${direction}${delta ? ` em ${formatCurrency(Math.abs(delta))}` : ""}, passando de ${formatCurrency(a.projectedBalanceCents)} para ${formatCurrency(b.projectedBalanceCents)}.`,
-      ui: buildFinancialTable(`comparison-${monthA}-${monthB}`, `Comparação ${monthA} × ${monthB}`, [
-        { key: "month", label: "Mês", format: "text" }, { key: "incomeCents", label: "Receita", format: "currency" },
-        { key: "committedCents", label: "Comprometido", format: "currency" }, { key: "balanceCents", label: "Saldo", format: "currency" },
-        { key: "status", label: "Situação", format: "badge" },
-      ], rows),
-    };
+    return compareFinancialMonths(monthA, monthB, repository);
   }
   if (name === "create_transaction_draft") {
     const occurredAt = localDate();
@@ -213,11 +260,15 @@ export async function executeAgentTool(name: ToolName, rawArguments: unknown, re
   if (name === "analyze_spending") {
     const { transactions } = await repository.getDataset();
     const month = args.month as MonthKey;
-    const analysis = analyzeCategorySpending(transactions, month, [addMonths(month, -2), addMonths(month, -1)]);
+    const baselineMonths = [addMonths(month, -2), addMonths(month, -1)];
+    const analysis = analyzeCategorySpending(transactions, month, baselineMonths);
     const rows = analysis.map((item) => ({ category: item.category, currentCents: item.currentCents, averageCents: item.averageCents, potentialSavingsCents: item.potentialSavingsCents, trend: item.trend }));
     const best = analysis.find((item) => item.potentialSavingsCents > 0);
-    const baselineMonths = [addMonths(month, -2), addMonths(month, -1)];
-    return { text: best ? `A maior oportunidade está em ${best.category}: ${formatCurrency(best.potentialSavingsCents)} acima da média de ${baselineMonths.join(" e ")}.` : `Não encontrei gastos acima da média de ${baselineMonths.join(" e ")}.`, ui: buildSpendingAnalysis(month, rows, baselineMonths) };
+    const text = !hasCategorySpendingHistory(transactions, baselineMonths)
+      ? `Não há histórico suficiente em ${baselineMonths.join(" e ")} para comparar os gastos de ${month}.`
+      : best ? `A maior oportunidade está em ${best.category}: ${formatCurrency(best.potentialSavingsCents)} acima da média de ${baselineMonths.join(" e ")}.`
+        : `Não encontrei gastos acima da média de ${baselineMonths.join(" e ")}.`;
+    return { text, ui: buildSpendingAnalysis(month, rows, baselineMonths) };
   }
   const month = args.month as MonthKey;
   const category = args.category as string;

@@ -143,6 +143,24 @@ describe("projections and scenarios", () => {
 });
 
 describe("category analysis", () => {
+  it("merges category spelling variants before applying refunds", () => {
+    const transactions = [
+      transaction({ id: "expense", type: "expense", amountCents: 500, occurredAt: "2026-08-10", category: "alimentação" }),
+      transaction({ id: "refund", type: "refund", amountCents: 3000, occurredAt: "2026-08-12", category: "Alimentação" }),
+    ];
+
+    expect(analyzeCategorySpending(transactions, "2026-08", ["2026-06", "2026-07"])).toEqual([
+      {
+        category: "Alimentação",
+        currentCents: -2500,
+        averageCents: 0,
+        differenceCents: -2500,
+        potentialSavingsCents: 0,
+        trend: "down",
+      },
+    ]);
+  });
+
   it("compares the current month with the historical average and ignores third-party spending", () => {
     const transactions = [
       transaction({ id: "june", type: "expense", amountCents: 10000, occurredAt: "2026-06-10", category: "Delivery" }),

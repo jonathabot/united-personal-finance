@@ -18,6 +18,13 @@ describe("agent tool executor", () => {
     expect(JSON.stringify(result.ui)).toContain("Premissas do cálculo");
   });
 
+  it("distinguishes recorded net spending from projected commitments", async () => {
+    const result = await executeAgentTool("query_financial_overview", { month: "2026-08" });
+
+    expect(result.text).toContain("gastos líquidos registrados");
+    expect(result.text).toContain("compromissos projetados");
+  });
+
   it("finds category opportunities from historical data", async () => {
     const result = await executeAgentTool("analyze_spending", { month: "2026-08" });
 
@@ -26,6 +33,27 @@ describe("agent tool executor", () => {
     expect(a2uiPayloadSchema.safeParse(result.ui).success).toBe(true);
     expect(componentNames(result)).toEqual(["CategoryBreakdown", "SavingsOpportunityTable", "FinanceDataTable"]);
     expect(JSON.stringify(result.ui)).toContain("Premissas da comparação");
+  });
+
+  it("reports insufficient history when both baseline months have no spending", async () => {
+    const repository: FinancialRepository = {
+      getDataset: async () => ({
+        cards: [],
+        transactions: [{
+          id: "current", type: "expense", amountCents: 33000, occurredAt: "2026-08-10",
+          description: "Cadeira", category: "Casa", status: "confirmed",
+        }],
+        projections: [],
+      }),
+      createEntityDraft: async () => { throw new Error(); }, createRenameDraft: async () => { throw new Error(); },
+      createValueChangeDraft: async () => { throw new Error(); }, createCloseDraft: async () => { throw new Error(); },
+      cancelLatestDraft: async () => { throw new Error(); }, confirmLatestDraft: async () => { throw new Error(); },
+    };
+
+    const result = await executeAgentTool("analyze_spending", { month: "2026-08" }, repository);
+
+    expect(result.text).toContain("Não há histórico suficiente");
+    expect(result.text).not.toContain("Não encontrei gastos acima da média");
   });
 
   it("simulates a reduction using the financial engine", async () => {
