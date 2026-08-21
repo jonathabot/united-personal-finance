@@ -2,6 +2,8 @@
 
 Assistente pessoal de finanças, orientado por conversa, para registrar movimentações em português, consultar faturas e analisar a evolução financeira com resultados determinísticos.
 
+[![CI](https://github.com/jonathabot/united-personal-finance/actions/workflows/ci.yml/badge.svg)](https://github.com/jonathabot/united-personal-finance/actions/workflows/ci.yml)
+
 O projeto combina um agente de linguagem com uma interface generativa. A IA interpreta o pedido e escolhe ferramentas; valores, parcelas, totais e projeções são calculados por código TypeScript testável.
 
 ## Estado atual
@@ -260,8 +262,9 @@ agendada, sem bloquear cada execução local ou pull request.
    demo, cobrindo carregamento, composer, resposta financeira, ausência de
    overflow horizontal e screenshots de desktop e celular. Login, onboarding e
    persistência autenticada entram na etapa 4 com o ambiente Supabase isolado.
-3. **Configurar GitHub Actions:** executar lint, testes unitários, Agent Evals,
-   build, integração Supabase e Playwright em cada pull request.
+3. **✅ Configurar GitHub Actions:** workflow executa lint, testes unitários,
+   Agent Evals, build e Playwright em pushes e pull requests da branch `main`.
+   Falhas E2E preservam traces e screenshots como artefatos por sete dias.
 4. **Testar a integração com Supabase:** validar RLS entre usuários, confirmação
    duplicada, concorrência, expiração de rascunhos, auditoria, desfazer e
    migrations em um banco isolado.
