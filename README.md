@@ -10,8 +10,8 @@ O projeto combina um agente de linguagem com uma interface generativa. A IA inte
 
 A **POC 1.0 local está concluída**. O fluxo conversacional, o motor financeiro,
 as tools, a persistência no Supabase e o catálogo visual estão integrados e
-validados localmente. Publicação, instalação como PWA e observabilidade ficam
-para a etapa pós-POC.
+validados pela suíte automatizada no GitHub Actions. Publicação, instalação como
+PWA e observabilidade ficam para a etapa pós-POC.
 
 ## Capturas da interface
 
@@ -270,8 +270,8 @@ agendada, sem bloquear cada execução local ou pull request.
    RLS entre usuários, confirmação idempotente, expiração persistente e
    auditoria em um banco efêmero. A suíte roda somente no GitHub Actions para
    não consumir recursos da máquina de desenvolvimento.
-5. **Organizar a entrega:** revisar as alterações, criar o commit da versão e a
-   tag `v1.0.0`, mantendo as limitações conhecidas documentadas.
+5. **✅ Organizar a entrega:** alterações revisadas, limitações conhecidas
+   documentadas e versão preparada para a tag `v1.0.0`.
 6. **Executar a fase pós-POC:** publicar na Vercel, adicionar PWA,
    observabilidade, tratamento de indisponibilidade e evals periódicos com a
    Groq real.
